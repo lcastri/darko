@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+	<model name="forklift">
+		<static>true</static>
+		<link name="forklift_link">
+			<collision name="forklift_collision">
+				<pose>0.65 1.95 0.5</pose>
+				<geometry>
+					<box>
+						<size>1.3 3.9 1</size>
+					</box>
+				</geometry>
+			</collision>
+			<visual name="forklift_mesh">
+				<cast_shadows>true</cast_shadows>
+				<geometry>
+					<mesh>
+						<uri>model://forklift/meshes/model.dae</uri>
+					</mesh>
+				</geometry>
+			</visual>
+    	</link>
+  	</model>
+</sdf>

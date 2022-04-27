@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+	<model name="conveyor">
+		<static>true</static>
+		<link name="conveyor_link">
+			<collision name="conveyor_collision">
+				<pose>5.5 0.38 0</pose>
+				<geometry>
+					<box>
+						<size>11.00 0.75 0.75</size>
+					</box>
+				</geometry>
+			</collision>
+			<visual name="conveyor_mesh">
+				<cast_shadows>true</cast_shadows>
+				<geometry>
+					<mesh>
+						<uri>model://conveyor/meshes/model.dae</uri>
+					</mesh>
+				</geometry>
+			</visual>
+    	</link>
+  	</model>
+</sdf>

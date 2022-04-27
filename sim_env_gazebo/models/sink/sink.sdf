@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+	<model name="sink">
+		<static>true</static>
+		<link name="sink_link">
+			<collision name="sink_collision">
+				<pose>0.25 0.37 0</pose>
+				<geometry>
+					<box>
+						<size>0.45 0.75 0.75</size>
+					</box>
+				</geometry>
+			</collision>
+			<visual name="sink_mesh">
+				<cast_shadows>true</cast_shadows>
+				<geometry>
+					<mesh>
+						<uri>model://sink/meshes/model.dae</uri>
+					</mesh>
+				</geometry>
+			</visual>
+    	</link>
+  	</model>
+</sdf>

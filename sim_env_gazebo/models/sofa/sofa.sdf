@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+	<model name="sofa">
+		<static>true</static>
+		<link name="sofa_link">
+			<collision name="sofa_collision">
+				<pose>1.35 0.45 0</pose>
+				<geometry>
+					<box>
+						<size>2.7 0.95 0.76</size>
+					</box>
+				</geometry>
+			</collision>
+			<visual name="sofa_mesh">
+				<cast_shadows>true</cast_shadows>
+				<geometry>
+					<mesh>
+						<uri>model://sofa/meshes/model.dae</uri>
+					</mesh>
+				</geometry>
+			</visual>
+    	</link>
+  	</model>
+</sdf>

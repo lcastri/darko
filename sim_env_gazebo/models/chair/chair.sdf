@@ -1,0 +1,23 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+	<model name="chair">
+		<static>true</static>
+		<link name="chair_link">
+			<collision name="chair_collision">
+				<geometry>
+					<box>
+						<size>1.00 1.00 1.00</size>
+					</box>
+				</geometry>
+			</collision>
+			<visual name="chair_mesh">
+				<cast_shadows>true</cast_shadows>
+				<geometry>
+					<mesh>
+						<uri>model://chair/meshes/model.dae</uri>
+					</mesh>
+				</geometry>
+			</visual>
+    	</link>
+  	</model>
+</sdf>
