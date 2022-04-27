@@ -12,7 +12,7 @@ ALPHA = 0.05
 # LOG CONSTANTS
 LOG_LEVEL = logging.INFO
 LOG_FORMAT = "%(levelname)s %(asctime)s - %(message)s"
-LOG_FOLDER = os.path.abspath(os.getcwd()) + '/logs'
+LOG_FOLDER = os.path.dirname(os.path.abspath(__file__)) + '/logs'
 LOG_FILENAME = "log_" + datetime.now().strftime("%d-%m-%Y_%H:%M:%S") + ".log"
 
 # TODO: TEMPORARY

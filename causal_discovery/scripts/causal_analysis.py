@@ -3,9 +3,8 @@ from causal_discovery.msg import ped_motion, causal_discovery
 from causal_model import causal_model
 import rospy
 import utils
-import logging
-from importlib import reload
 from constants import *
+
 
 def publish_model(model_json):
     """
@@ -17,8 +16,8 @@ def publish_model(model_json):
     causal_disc = causal_discovery()
     causal_disc.model = model_json
     pub_causal_model.publish(causal_disc)
-    logging.info("Causal model published")
-    logging.info(model_json)
+    logger.info("Causal model published")
+    logger.info(model_json)
 
 
 def cb_handle_human_traj(data):
@@ -28,7 +27,7 @@ def cb_handle_human_traj(data):
     Args:
         data (ped_traj): PoseArray data
     """
-    logging.info("Ped_mot arrived")
+    logger.info("Ped_mot arrived")
     # TODO: how to take always the same pedestrian?
     ped_x = data.ped_traj.poses[0].position.x
     ped_y = data.ped_traj.poses[0].position.y
@@ -45,7 +44,7 @@ def cb_handle_human_traj(data):
 
         # Starting causal analysis if TS_LENGTH has been reached
         if (len(cm.df) * 1/NODE_RATE) >= TS_LENGTH:
-            logging.info("Causal analysis started")
+            logger.info("Causal analysis started")
             cm.run_causal_discovery_algorithm()
             publish_model(cm.cm_json)
         
@@ -54,7 +53,6 @@ def cb_handle_human_traj(data):
 if __name__ == '__main__':
     # TODO: are the goal coordinates defined or they come from a message?
     # TODO: do I need a thread for running PCMCI?
-    utils.init_logger()
 
     # Causal model info
     vars_name, vars_name_printable = utils.read_vars_name(VARS_FILENAME)
@@ -65,12 +63,11 @@ if __name__ == '__main__':
     utils.print_node_info()
     rospy.init_node(NODE_NAME, anonymous=True)
 
-    # Reload logger and handler after init_node
-    reload(logging)
-    utils.init_logger()
+    # Init logger after init_node  
+    logger = utils.init_logger()
                     
     rate = rospy.Rate(NODE_RATE)
-    logging.info("Ros node named " + str(NODE_NAME) + " initialized. Node rate : " + str(NODE_RATE) + "Hz")
+    logger.info("Ros node named " + str(NODE_NAME) + " initialized. Node rate : " + str(NODE_RATE) + "Hz")
 
     # Init subscriber & publisher
     sub_human_pose = rospy.Subscriber('/hri/motion_prediction', ped_motion, cb_handle_human_traj)

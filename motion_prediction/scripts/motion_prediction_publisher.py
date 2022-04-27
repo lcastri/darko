@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 from motion_prediction.msg import ped_motion
 import rospy
-import logging
 import utils
 from geometry_msgs.msg import Pose, PoseArray
-from importlib import reload
 from constants import *
 
 
@@ -24,18 +22,16 @@ def publish_mot_pred():
 
 
 if __name__ == '__main__':
-    utils.init_logger()
-    
+   
     # Node info
     utils.print_node_info()
     rospy.init_node(NODE_NAME, anonymous=True)
 
-    # Reload logger and handler after init_node
-    reload(logging)
-    utils.init_logger()
+    # Init logger after init_node  
+    logger = utils.init_logger()
 
     rate = rospy.Rate(NODE_RATE)
-    logging.info(msg = "Ros node named " + NODE_NAME + " initialized. Node rate : " + str(NODE_RATE) + "Hz")
+    logger.info(msg = "Ros node named " + NODE_NAME + " initialized. Node rate : " + str(NODE_RATE) + "Hz")
 
     # Init publisher
     pub_mot_pred = rospy.Publisher('/hri/motion_prediction', ped_motion, queue_size=10)
