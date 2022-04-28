@@ -3,6 +3,8 @@ import logging
 import os
 
 
+DATA_FILE = os.path.dirname(os.path.abspath(__file__)) + '/data.csv'
+
 NODE_NAME = 'motion_prediction'
 NODE_RATE = 10 #Hz
 

@@ -1,10 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.8
+import json
 from causal_discovery.msg import ped_motion, causal_discovery
 from causal_model import causal_model
 import rospy
 import utils
 from constants import *
+import threading
 
+
+df_data = utils.pd.DataFrame()
+df_traj = utils.pd.DataFrame(columns = ['x','y'])
+df_reset = True
+    
 
 def publish_model(model_json):
     """
@@ -13,11 +20,37 @@ def publish_model(model_json):
     Args:
         model_json (JSON): JSON string to publish
     """
+    
+    # Building message
     causal_disc = causal_discovery()
     causal_disc.model = model_json
+    
+    # Publish message
     pub_causal_model.publish(causal_disc)
-    logger.info("Causal model published")
-    logger.info(model_json)
+    log.info("Causal model published")
+    log.info(model_json)
+    
+    
+def causal_thread(csv_id):
+    """
+    Causal analysis on file named csv_id
+
+    Args:
+        csv_id (str): csv ID to analyse
+    """
+    log.info("Causal analysis on file " + csv_id + " started")
+    
+    # Run causal analysis
+    cm = causal_model(csv_id, vars_name, ALPHA)
+    cm.run_causal_discovery_algorithm()
+    log.info("Causal analysis on file " + csv_id + " completed")
+
+    # Publish causal model in JSON format
+    publish_model(json.dumps(cm.inference_dict))
+    
+    # Delete file .csv just analysed
+    utils.delete_csv(csv_id)
+    del cm
 
 
 def cb_handle_human_traj(data):
@@ -27,47 +60,66 @@ def cb_handle_human_traj(data):
     Args:
         data (ped_traj): PoseArray data
     """
-    logger.info("Ped_mot arrived")
+    global df_data
+    global df_traj
+    global df_reset
+    
+    # If TS_LENGTH reached then reset dataframes else append new data
+    if df_reset:
+        df_data = utils.pd.DataFrame(columns = vars_name)
+        df_traj = utils.pd.DataFrame(columns = ['x','y'])
+        log.info("Dataframes initialised")
+        df_reset = False
+   
     # TODO: how to take always the same pedestrian?
-    ped_x = data.ped_traj.poses[0].position.x
-    ped_y = data.ped_traj.poses[0].position.y
-    if not cm.df_traj.empty:
-        ped_x_old = cm.df_traj.tail(1)['x']
-        ped_y_old = cm.df_traj.tail(1)['y']
+    x = data.ped_traj.poses[0].position.x
+    y = data.ped_traj.poses[0].position.y
+    if not df_traj.empty:
+        x_old = df_traj.loc[df_traj.index[-1], 'x']
+        y_old = df_traj.loc[df_traj.index[-1], 'y']
 
-        # Append new data for timeseries
-        theta_g = utils.bearing(ped_x, ped_y, GOAL_X, GOAL_Y)
-        d_g = utils.distance(ped_x, ped_y, GOAL_X, GOAL_Y)
-        v = utils.velocity(ped_x, ped_y, ped_x_old, ped_y_old)
-        new_data = {vars_name[0]: theta_g, vars_name[1]: d_g, vars_name[2]: v}
-        cm.add_data(new_data)
+        # Compute and append new data for timeseries
+        theta_g = utils.bearing(x, y, GOAL_X, GOAL_Y)
+        d_g = utils.distance(x, y, GOAL_X, GOAL_Y)
+        v = utils.velocity(x, y, x_old, y_old)
+        df_data.loc[df_data.shape[0]] = [theta_g, d_g, v]
 
         # Starting causal analysis if TS_LENGTH has been reached
-        if (len(cm.df) * 1/NODE_RATE) >= TS_LENGTH:
-            logger.info("Causal analysis started")
-            cm.run_causal_discovery_algorithm()
-            publish_model(cm.cm_json)
-        
-    cm.add_point([ped_x, ped_y])
+        if (len(df_data) * 1/NODE_RATE) >= TS_LENGTH:
+            # Saving dataframe into .csv file
+            csv_id = utils.save_csv(df_data)
+            log.info("Data saved into file named : " + csv_id)
+            
+            # Starting causal analysis on .csv just created
+            t_causality = threading.Thread(target = causal_thread, args = (csv_id,))
+            t_causality.start()
+            
+            # New dataframe
+            df_reset = True
+            
+    # Append new data
+    df_traj.loc[df_traj.shape[0]] = [x, y]
+
 
 if __name__ == '__main__':
     # TODO: are the goal coordinates defined or they come from a message?
     # TODO: do I need a thread for running PCMCI?
-
-    # Causal model info
-    vars_name, vars_name_printable = utils.read_vars_name(VARS_FILENAME)
-    cm = causal_model(vars_name, ALPHA)
-    logging.info("Causal model initialized")
-
+    
+    # Create data pool directory
+    utils.create_data_dir()
+    
     # Node info
     utils.print_node_info()
     rospy.init_node(NODE_NAME, anonymous=True)
+    
+    # Import log after ROS init_node
+    from log import log
+    
+    # Reading variables name
+    vars_name, vars_name_printable = utils.read_vars_name(VARS_FILENAME)
 
-    # Init logger after init_node  
-    logger = utils.init_logger()
-                    
     rate = rospy.Rate(NODE_RATE)
-    logger.info("Ros node named " + str(NODE_NAME) + " initialized. Node rate : " + str(NODE_RATE) + "Hz")
+    log.info("Ros node named " + str(NODE_NAME) + " initialized. Node rate : " + str(NODE_RATE) + "Hz")
 
     # Init subscriber & publisher
     sub_human_pose = rospy.Subscriber('/hri/motion_prediction', ped_motion, cb_handle_human_traj)

@@ -1,8 +1,47 @@
+from asyncio import constants
 from constants import *
-import logging
 from math import sqrt, atan2
 import pandas as pd
-import os
+from log import log
+
+
+def create_data_dir():
+    """
+    Create data directory
+    """
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
+        
+        
+def save_csv(df):
+    """
+    Save dataframe to .cvs
+
+    Args:
+        df (DataFrame): data to save to .csv
+
+    Returns:
+        str: csv ID
+    """
+
+    csv_id = "data_" + datetime.now().strftime("%d-%m-%Y_%H:%M:%S") + ".csv"
+    df.to_csv(DATA_DIR + "/" + csv_id, index = False)
+    return csv_id
+
+
+def delete_csv(csv_id):
+    """
+    Delete a .csv file
+
+    Args:
+        csv_id (str): csv file to delete
+    """
+    csv_path = DATA_DIR + "/" + csv_id
+    if(os.path.exists(csv_path) and os.path.isfile(csv_path)):
+        os.remove(csv_path)
+        log.info("Deleted data file named : " + csv_id)
+    else:
+        log.error(csv_id + " not found")
 
 
 def print_node_info():
@@ -12,36 +51,6 @@ def print_node_info():
     print("Node name : " + NODE_NAME)
     print("Node rate : " + str(NODE_RATE) + "Hz")
     print("Node log : " + LOG_FOLDER + '/' + LOG_FILENAME)
-
-
-# Creating and Configuring Logger
-def init_logger():
-    """
-    Create LOG_FOLDER (if needed) and then initialise logger
-
-    Returns:
-        Logger: logger instance
-    """
-    if not os.path.exists(LOG_FOLDER):
-        os.makedirs(LOG_FOLDER)
-        
-    logger = logging.getLogger(NODE_NAME)
-    logger.setLevel(logging.DEBUG)
-
-    # create console handler and set level to debug
-    ch = logging.FileHandler(filename = LOG_FOLDER + '/' + LOG_FILENAME)
-    ch.setLevel(logging.DEBUG)
-
-    # create formatter
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    # add formatter to ch
-    ch.setFormatter(formatter)
-
-    # add ch to logger
-    logger.addHandler(ch)
-    
-    return logger
 
 
 def read_vars_name(filename):
@@ -55,7 +64,7 @@ def read_vars_name(filename):
         vars_name (list(str)): list containing variables name
         vars_name_printable (list(str)): list containing variables name printable
     """
-    logging.info("Reading vars from : " + filename)
+    log.info("Reading vars from : " + filename)
 
     # init empty vars_name list
     vars_name = list()
@@ -69,7 +78,7 @@ def read_vars_name(filename):
             vars_name_printable.append(r'$' + str(line.strip()) + '$')
             line = file.readline()
 
-    logging.info("Causal analysis on variables : " + str(vars_name))
+    log.info("Causal analysis on variables : " + str(vars_name))
     return vars_name, vars_name_printable
     
 
@@ -122,13 +131,3 @@ def velocity(xa, ya, xa_old, ya_old):
     """
     v = sqrt((xa - xa_old) ** 2 + (ya - ya_old) ** 2)
     return v
-
-
-def init_df(vars_name):
-    """
-    Init pandas DataFrame for causal discovery
-
-    Args:
-        vars_name (list(str)): list containing variables name
-    """
-    df = pd.DataFrame(columns = vars_name)
