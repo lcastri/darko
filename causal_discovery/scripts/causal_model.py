@@ -4,6 +4,8 @@ import tigramite.data_processing as pp
 from tigramite.pcmci import PCMCI
 from tigramite.independence_tests import GPDC, GPDCtorch
 from constants import *
+from sklearn.utils._testing import ignore_warnings
+from sklearn.exceptions import ConvergenceWarning
 
 class causal_model:
     def __init__(self, filename, vars_name, alpha):
@@ -20,6 +22,7 @@ class causal_model:
         self.inference_dict = dict()
     
 
+    @ignore_warnings(category=ConvergenceWarning)
     def run_causal_discovery_algorithm(self):
         """
         Run causal discovery algorithm

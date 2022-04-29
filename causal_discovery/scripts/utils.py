@@ -1,16 +1,36 @@
-from asyncio import constants
 from constants import *
 from math import sqrt, atan2
-import pandas as pd
 from log import log
+from os import listdir
+from os.path import isfile, join
+import shutil
+
+def file_in_folder(dir_path):
+    """
+    List files in a specific folder
+
+    Args:
+        dir_path (str): folder path
+
+    Returns:
+        list[str]: list of files found in the folder
+    """
+    # count = 0
+    # for path in os.scandir(dir_path):
+    #     if path.is_file():
+    #         count += 1
+    files_list = [f for f in listdir(dir_path) if isfile(join(dir_path, f))]
+
+    return files_list
 
 
 def create_data_dir():
     """
     Create data directory
     """
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
+    if os.path.exists(DATA_DIR):
+        shutil.rmtree(DATA_DIR)
+    os.makedirs(DATA_DIR)
         
         
 def save_csv(df):

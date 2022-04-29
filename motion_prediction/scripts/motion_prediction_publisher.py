@@ -6,6 +6,7 @@ from geometry_msgs.msg import Pose, PoseArray
 from constants import *
 import pandas as pd
 
+
 def publish_mot_pred(i):
     x = df_data.loc[i].x
     y = df_data.loc[i].y
@@ -25,7 +26,7 @@ def publish_mot_pred(i):
 
 
 if __name__ == '__main__':
-    
+
     # Loading csv file into Dataframe
     with open(DATA_FILE, 'r') as file:
         df_data = pd.read_csv(file)
@@ -47,4 +48,6 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         publish_mot_pred(df_i)
         df_i = df_i + 1
+        if df_i >= df_data.shape[0]:
+            break
         rate.sleep()

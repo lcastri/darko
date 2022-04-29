@@ -1,13 +1,20 @@
 from datetime import datetime
 import logging
 import os
+from enum import Enum
 
+
+class causal_stategy(Enum):
+    MULTI = 0
+    FIFO = 1
+    
 
 VARS_FILENAME = os.path.dirname(os.path.abspath(__file__)) + '/vars.txt'
 NODE_NAME = 'causal_discovery'
 NODE_RATE = 10 #Hz
-TS_LENGTH = 60 #150 #seconds
+TS_LENGTH = 150 #seconds
 ALPHA = 0.05
+CAUSAL_STRATEGY = causal_stategy.FIFO
 
 # LOG CONSTANTS
 LOG_LEVEL = logging.INFO

@@ -35,6 +35,7 @@ class Log:
         # add ch to logger
         self.logger.addHandler(ch)
         
+        
     def info(self, msg):
         """
         Write INFO msg
@@ -43,6 +44,27 @@ class Log:
             msg (str): INFO message
         """
         self.logger.info(msg)
+        
+        
+    def debug(self, msg):
+        """
+        Write DEBUG msg
+
+        Args:
+            msg (str): DEBUG message
+        """
+        self.logger.debug(msg)
+        
+    
+    def warn(self, msg):
+        """
+        Write WARN msg
+
+        Args:
+            msg (str): WARN message
+        """
+        self.logger.warn(msg)
+        
         
     def error(self, msg):
         """
