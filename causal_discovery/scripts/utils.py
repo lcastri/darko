@@ -135,7 +135,7 @@ def bearing(xa, ya, xb, yb):
     theta = atan2(yb - ya, xb - xa)
     return theta
 
-
+# TODO: to solve units -> m/s
 def velocity(xa, ya, xa_old, ya_old):
     """
     Compute angle between agent A and B
