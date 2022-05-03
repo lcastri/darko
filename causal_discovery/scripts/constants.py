@@ -5,6 +5,7 @@ from enum import Enum
 
 
 class causal_stategy(Enum):
+    NONE = -1
     MULTI = 0
     FIFO = 1
     
@@ -17,7 +18,7 @@ ALPHA = 0.05
 CAUSAL_STRATEGY = causal_stategy.FIFO
 
 # LOG CONSTANTS
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.DEBUG # DEBUG - INFO - WARNING - ERROR - CRITICAL
 LOG_FORMAT = "%(levelname)s %(asctime)s - %(message)s"
 LOG_FOLDER = os.path.dirname(os.path.abspath(__file__)) + '/logs'
 LOG_FILENAME = "log_" + datetime.now().strftime("%d-%m-%Y_%H:%M:%S") + ".log"

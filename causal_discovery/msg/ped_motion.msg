@@ -1,2 +1,0 @@
-string ped
-geometry_msgs/PoseArray ped_traj

@@ -6,6 +6,8 @@ from tigramite.independence_tests import GPDC, GPDCtorch
 from constants import *
 from sklearn.utils._testing import ignore_warnings
 from sklearn.exceptions import ConvergenceWarning
+from log import log
+
 
 class causal_model:
     def __init__(self, filename, vars_name, alpha):
@@ -47,6 +49,9 @@ class causal_model:
                                  tau_min = 1,
                                  pc_alpha = 0.05)
 
+        self.__log_result(result['p_matrix'],
+                          result['val_matrix'])
+
         self.inference_dict = self.__build_causal_model(result['p_matrix'], result['val_matrix'])
 
     
@@ -82,3 +87,61 @@ class causal_model:
                 inference[var] = val_matrix[var][:,lag].transpose()
             dict_cm[lag] = inference.tolist()
         return dict_cm
+
+
+    def __log_result(self,
+                     p_matrix,
+                     val_matrix,
+                     conf_matrix=None,
+                     graph=None,
+                     ambiguous_triples=None,
+                     alpha_level=0.05):
+        """
+        _summary_
+
+        Args:
+            p_matrix (array-like): Must be of shape (N, N, tau_max + 1)
+            val_matrix (array-like): Must be of shape (N, N, tau_max + 1)
+            conf_matrix (array-like, optional): Matrix of confidence intervals of shape (N, N, tau_max+1, 2). Defaults to None.
+            graph (array-like, optional): Must be of shape (N, N, tau_max + 1). Defaults to None.
+            ambiguous_triples (list, optional): List of ambiguous triples. Defaults to None.
+            alpha_level (float, optional): Significance level. Defaults to 0.05.
+        """
+        if graph is not None:
+            sig_links = (graph != "")*(graph != "<--")
+        else:
+            sig_links = (p_matrix <= alpha_level)
+        log.info("\n## Significant links at alpha = %s:" % alpha_level)
+        for j in range(len(self.vars_name)):
+            links = {(p[0], -p[1]): numpy.abs(val_matrix[p[0], j, abs(p[1])])
+                     for p in zip(*numpy.where(sig_links[:, j, :]))}
+            # Sort by value
+            sorted_links = sorted(links, key=links.get, reverse=True)
+            n_links = len(links)
+            string = ("\n    Variable %s has %d "
+                      "link(s):" % (self.vars_name[j], n_links))
+            for p in sorted_links:
+                string += ("\n        (%s % d): pval = %.5f" %
+                           (self.vars_name[p[0]], p[1],
+                            p_matrix[p[0], j, abs(p[1])]))
+                string += " | val = % .3f" % (
+                    val_matrix[p[0], j, abs(p[1])])
+                if conf_matrix is not None:
+                    string += " | conf = (%.3f, %.3f)" % (
+                        conf_matrix[p[0], j, abs(p[1])][0],
+                        conf_matrix[p[0], j, abs(p[1])][1])
+                if graph is not None:
+                    if p[1] == 0 and graph[j, p[0], 0] == "o-o":
+                        string += " | unoriented link"
+                    if graph[p[0], j, abs(p[1])] == "x-x":
+                        string += " | unclear orientation due to conflict"
+            log.info(string)
+        # link_marker = {True:"o-o", False:"-->"}
+        if ambiguous_triples is not None and len(ambiguous_triples) > 0:
+            log.info("\n## Ambiguous triples (not used for orientation):\n")
+            for triple in ambiguous_triples:
+                (i, tau), k, j = triple
+                log.info("    [(%s % d), %s, %s]" % (
+                    self.vars_name[i], tau, 
+                    self.vars_name[k],
+                    self.vars_name[j]))

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3.8
-from email.errors import NonPrintableDefect
 import json
-from causal_discovery.msg import ped_motion, causal_discovery
+from causal_discovery.msg import CausalModel, Humans, SceneObjects
 from causal_model import causal_model
 import rospy
 import utils
@@ -9,10 +8,10 @@ from constants import *
 import threading
 import time
 import pandas as pd
+import message_filters
 
 
 df_data = pd.DataFrame()
-df_traj = pd.DataFrame(columns = ['x','y'])
 df_reset = True
     
 
@@ -25,8 +24,10 @@ def publish_model(model_json):
     """
     
     # Building message
-    causal_disc = causal_discovery()
+    causal_disc = CausalModel()
     causal_disc.model = model_json
+    # causal_disc.human = human
+    # causal_disc.obj = obj
     
     # Publish message
     pub_causal_model.publish(causal_disc)
@@ -67,58 +68,50 @@ def t_fifocausal():
         time.sleep(1)
 
 
-def cb_handle_human_traj(data):
+def cb_handle_data(humans_pose, objs_pose):
     """
     Callback to handle new data on human trajectory
 
     Args:
-        data (ped_traj): PoseArray data
+        humans_pose (Humans): custom msg from T2.5
+        objs_pose (SceneObjects): custom msg from MapServer
     """
     global df_data
-    global df_traj
     global df_reset
+    log.debug("New human and object poses")
     
     # If TS_LENGTH reached then reset dataframes else append new data
     if df_reset:
         df_data = pd.DataFrame(columns = vars_name)
-        df_traj = pd.DataFrame(columns = ['x','y'])
         log.info("Dataframes initialised")
         df_reset = False
    
-    # TODO: how to take always the same pedestrian?
-    x = data.ped_traj.poses[0].position.x
-    y = data.ped_traj.poses[0].position.y
-    if not df_traj.empty:
-        x_old = df_traj.loc[df_traj.index[-1], 'x']
-        y_old = df_traj.loc[df_traj.index[-1], 'y']
+    human, h_x, h_y, h_vx, h_vy = utils.handle_human_pose(humans_pose, selected_id=0)
+    goal, goal_x, goal_y = utils.handle_obj_pose(objs_pose, selected_id=0)
 
-        # Compute and append new data for timeseries
-        theta_g = utils.bearing(x, y, GOAL_X, GOAL_Y)
-        d_g = utils.distance(x, y, GOAL_X, GOAL_Y)
-        v = utils.velocity(x, y, x_old, y_old)
-        df_data.loc[df_data.shape[0]] = [theta_g, d_g, v]
+    # Compute and append new data for timeseries
+    theta_g = utils.bearing(h_x, h_y, goal_x, goal_y)
+    d_g = utils.distance(h_x, h_y, goal_x, goal_y)
+    v = utils.velocity(h_vx, h_vy)
+    df_data.loc[df_data.shape[0]] = [theta_g, d_g, v]
 
-        # Starting causal analysis if TS_LENGTH has been reached
-        if (len(df_data) * 1/NODE_RATE) >= TS_LENGTH:
-            # Saving dataframe into .csv file
-            csv_id = utils.save_csv(df_data)
-            log.info("Data saved into file named : " + csv_id)
-            
-            if CAUSAL_STRATEGY == causal_stategy.MULTI:
-                # Starting causal analysis on .csv just created
-                t_causality = threading.Thread(target = t_multicausal, args = (csv_id,))
-                t_causality.start()
-            
-            # New dataframe
-            df_reset = True
-            
-    # Append new data
-    df_traj.loc[df_traj.shape[0]] = [x, y]
+    # Starting causal analysis if TS_LENGTH has been reached
+    if (len(df_data) * 1/NODE_RATE) >= TS_LENGTH:
+        # Saving dataframe into .csv file
+        csv_id = utils.save_csv(df_data)
+        log.info("Data saved into file named : " + csv_id)
+        
+        if CAUSAL_STRATEGY == causal_stategy.MULTI:
+            # Starting causal analysis on .csv just created
+            t_causality = threading.Thread(target = t_multicausal, args = (csv_id,))
+            t_causality.start()
+        
+        # New dataframe
+        df_reset = True
 
 
-if __name__ == '__main__':
-    # TODO: are the goal coordinates defined or they come from a message?
-       
+if __name__ == '__main__':       
+
     # Create data pool directory
     utils.create_data_dir()
     if CAUSAL_STRATEGY == causal_stategy.FIFO:
@@ -140,7 +133,13 @@ if __name__ == '__main__':
     log.info("Ros node named " + str(NODE_NAME) + " initialized. Node rate : " + str(NODE_RATE) + "Hz")
 
     # Init subscriber & publisher
-    sub_human_pose = rospy.Subscriber('/hri/motion_prediction', ped_motion, cb_handle_human_traj)
-    pub_causal_model = rospy.Publisher('/hri/causal_discovery', causal_discovery, queue_size=10)
+    sub_humans_pose = message_filters.Subscriber('/perception/humans', Humans)
+    sub_objs_pose = message_filters.Subscriber('/mapping/scene_objects', SceneObjects)
+    pub_causal_model = rospy.Publisher('/hri/causal_discovery', CausalModel, queue_size=10)
+
+    # Init synchronizer and assigning a callback 
+    ats = message_filters.ApproximateTimeSynchronizer([sub_humans_pose, sub_objs_pose], queue_size=NODE_RATE*TS_LENGTH, slop=0.2, allow_headerless=True)
+    ats.registerCallback(cb_handle_data)
+
     while not rospy.is_shutdown():
         rate.sleep()

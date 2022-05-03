@@ -1,9 +1,11 @@
 import logging
 import os
+
+from torch import le
 from constants import *
 
 class Log:
-    def __init__(self, folder, filename, name):
+    def __init__(self, folder, filename, name, level):
         """
         Log contructor
 
@@ -20,11 +22,11 @@ class Log:
             os.makedirs(folder)
         
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(level)
 
         # create console handler and set level to debug
         ch = logging.FileHandler(filename = folder + '/' + filename)
-        ch.setLevel(logging.DEBUG)
+        ch.setLevel(level)
 
         # create formatter
         self.formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -36,16 +38,6 @@ class Log:
         self.logger.addHandler(ch)
         
         
-    def info(self, msg):
-        """
-        Write INFO msg
-
-        Args:
-            msg (str): INFO message
-        """
-        self.logger.info(msg)
-        
-        
     def debug(self, msg):
         """
         Write DEBUG msg
@@ -54,6 +46,16 @@ class Log:
             msg (str): DEBUG message
         """
         self.logger.debug(msg)
+
+    
+    def info(self, msg):
+        """
+        Write INFO msg
+
+        Args:
+            msg (str): INFO message
+        """
+        self.logger.info(msg)
         
     
     def warn(self, msg):
@@ -75,4 +77,5 @@ class Log:
         """
         self.logger.error(msg)
     
-log = Log(LOG_FOLDER, LOG_FILENAME, NODE_NAME)
+
+log = Log(LOG_FOLDER, LOG_FILENAME, NODE_NAME, LOG_LEVEL)

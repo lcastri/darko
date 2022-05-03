@@ -135,19 +135,63 @@ def bearing(xa, ya, xb, yb):
     theta = atan2(yb - ya, xb - xa)
     return theta
 
-# TODO: to solve units -> m/s
-def velocity(xa, ya, xa_old, ya_old):
+
+def velocity(vx, vy):
     """
-    Compute angle between agent A and B
+    Compute absolute velocity from vx and vy 
 
     Args:
-        xa (float): x-coord A agent (t)
-        ya (float): y-coord A agent (t)
-        xa_old (float): x-coord A agent (t-1)
-        ya_old (float): y-coord A agent (t-1)
+        vx (float): human velocity along x-axis
+        vy (float): human velocity along y-axis
 
     Returns:
-        v (float): velocity of agent A
+        v (float): absolute velocity of human
     """
-    v = sqrt((xa - xa_old) ** 2 + (ya - ya_old) ** 2)
+    v = sqrt(vx ** 2 + vy ** 2)
     return v
+
+
+def handle_obj_pose(data, selected_id):
+    """
+    new data on object position handler
+
+    Args:
+        data (SceneObjects): custom msg from MapServer
+
+    Returns:
+        obj: selected human
+        x: position along x-axis
+        y: position along y-axis
+    """
+    obj = next(obj for obj in data.objects if obj.id == selected_id)
+
+    x = obj.pose.pose.position.x
+    y = obj.pose.pose.position.y
+    log.debug("Object pose received : (x " + str(x) + " - y " + str(y) + ")")
+
+    return obj, x, y
+
+
+def handle_human_pose(data, selected_id):
+    """
+    new data on human trajectory handler
+
+    Args:
+        data (Humans): custom msg from T2.5
+
+    Returns:
+        human: selected human
+        x: position along x-axis
+        y: position along y-axis
+        vx: velocity along x-axis
+        vy: velocity along y-axis
+    """ 
+    human = next(human for human in data.humans if human.id == selected_id)
+
+    x = human.centroid.pose.position.x
+    y = human.centroid.pose.position.y
+    vx = human.velocity.twist.linear.x
+    vy = human.velocity.twist.linear.y
+    log.debug("Human pose received : (x " + str(x) + " - y " + str(y) + " - vx " + str(vx) + " - vy " + str(vy) + ")")
+
+    return human, x, y, vx, vy
