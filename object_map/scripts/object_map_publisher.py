@@ -4,7 +4,7 @@ import rospy
 import utils
 from constants import *
 import pandas as pd
-
+import time
 
 def publish_mot_pred(i):
     x = df_data.loc[i].x
@@ -17,9 +17,7 @@ def publish_mot_pred(i):
 
     obj_list = SceneObjects()
     obj_list.objects.append(obj)
-
-    # ped_mot.ped_traj.header.frame_id = 'base_frame'
-    # ped_mot.ped_traj.poses.append(p)
+    obj_list.header.stamp = rospy.Time.now()
     pub_mot_pred.publish(obj_list)
 
 
@@ -42,6 +40,7 @@ if __name__ == '__main__':
 
     # Init publisher
     pub_mot_pred = rospy.Publisher('/mapping/scene_objects', SceneObjects, queue_size=10)
+    time.sleep(5)
 
     while not rospy.is_shutdown():
         publish_mot_pred(df_i)

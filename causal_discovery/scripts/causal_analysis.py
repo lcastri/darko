@@ -10,12 +10,15 @@ import time
 import pandas as pd
 import message_filters
 
+# TODO: remove selected human id = 22
+# TODO: remove selected obj id = 0
 
 df_data = pd.DataFrame()
 df_reset = True
-    
+dict_human_csv = dict()
 
-def publish_model(model_json):
+
+def publish_model(model_json, h_id):
     """
     Publish model_json
 
@@ -26,13 +29,12 @@ def publish_model(model_json):
     # Building message
     causal_disc = CausalModel()
     causal_disc.model = model_json
-    # causal_disc.human = human
-    # causal_disc.obj = obj
+    causal_disc.human_id = h_id
     
     # Publish message
     pub_causal_model.publish(causal_disc)
-    log.info("Causal model published : " + model_json)
-    
+    log.info(utils.print_causal_model_msg(causal_disc))
+
     
 def t_multicausal(csv_id):
     """
@@ -41,17 +43,18 @@ def t_multicausal(csv_id):
     Args:
         csv_id (str): csv ID to analyse
     """
-    log.info("Causal analysis on file " + csv_id + " started")
+    log.info("Causal analysis on file " + utils.get_csv_path(csv_id) + " started")
     
     # Run causal analysis
     cm = causal_model(csv_id, vars_name, ALPHA)
     cm.run_causal_discovery_algorithm()
-    log.info("Causal analysis on file " + csv_id + " completed")
+    log.info("Causal analysis on file " + utils.get_csv_path(csv_id) + " completed")
 
     # Publish causal model in JSON format
-    publish_model(json.dumps(cm.inference_dict))
+    publish_model(json.dumps(cm.inference_dict), dict_human_csv[csv_id])
     
     # Delete file .csv just analysed
+    dict_human_csv.pop(csv_id)
     utils.delete_csv(csv_id)
     del cm
     
@@ -78,6 +81,8 @@ def cb_handle_data(humans_pose, objs_pose):
     """
     global df_data
     global df_reset
+    global dict_human_csv
+
     log.debug("New human and object poses")
     
     # If TS_LENGTH reached then reset dataframes else append new data
@@ -85,32 +90,34 @@ def cb_handle_data(humans_pose, objs_pose):
         df_data = pd.DataFrame(columns = vars_name)
         log.info("Dataframes initialised")
         df_reset = False
-   
-    human, h_x, h_y, h_vx, h_vy = utils.handle_human_pose(humans_pose, selected_id=0)
-    goal, goal_x, goal_y = utils.handle_obj_pose(objs_pose, selected_id=0)
+        selected_h = utils.get_selected_human(humans_pose, selected_id=22)
+        csv_id = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
+        dict_human_csv[csv_id] = selected_h.id
+
+    h_state = utils.handle_human_pose(humans_pose, selected_id=22)
+    goal = utils.handle_obj_pose(objs_pose, selected_id=0)
 
     # Compute and append new data for timeseries
-    theta_g = utils.bearing(h_x, h_y, goal_x, goal_y)
-    d_g = utils.distance(h_x, h_y, goal_x, goal_y)
-    v = utils.velocity(h_vx, h_vy)
-    df_data.loc[df_data.shape[0]] = [theta_g, d_g, v]
+    df_data.loc[df_data.shape[0]] = utils.compute_causal_var(h_state, goal)
 
     # Starting causal analysis if TS_LENGTH has been reached
     if (len(df_data) * 1/NODE_RATE) >= TS_LENGTH:
         # Saving dataframe into .csv file
-        csv_id = utils.save_csv(df_data)
-        log.info("Data saved into file named : " + csv_id)
+        list_csv_id = list(dict_human_csv.keys())
+        list_csv_id.sort()
+        name_csv = list_csv_id[-1]
+        utils.save_csv(df_data, name_csv)
         
         if CAUSAL_STRATEGY == causal_stategy.MULTI:
             # Starting causal analysis on .csv just created
-            t_causality = threading.Thread(target = t_multicausal, args = (csv_id,))
+            t_causality = threading.Thread(target = t_multicausal, args = (dict_human_csv.keys())[0],)
             t_causality.start()
         
         # New dataframe
         df_reset = True
 
 
-if __name__ == '__main__':       
+if __name__ == '__main__':
 
     # Create data pool directory
     utils.create_data_dir()
@@ -138,7 +145,10 @@ if __name__ == '__main__':
     pub_causal_model = rospy.Publisher('/hri/causal_discovery', CausalModel, queue_size=10)
 
     # Init synchronizer and assigning a callback 
-    ats = message_filters.ApproximateTimeSynchronizer([sub_humans_pose, sub_objs_pose], queue_size=NODE_RATE*TS_LENGTH, slop=0.2, allow_headerless=True)
+    ats = message_filters.ApproximateTimeSynchronizer([sub_humans_pose, sub_objs_pose], 
+                                                      queue_size=NODE_RATE*TS_LENGTH, 
+                                                      slop=1, 
+                                                      allow_headerless=True)
     ats.registerCallback(cb_handle_data)
 
     while not rospy.is_shutdown():

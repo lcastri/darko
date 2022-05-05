@@ -3,7 +3,9 @@ from math import sqrt, atan2
 from log import log
 from os import listdir
 from os.path import isfile, join
+from causal_discovery.msg import CausalModel
 import shutil
+
 
 def file_in_folder(dir_path):
     """
@@ -15,12 +17,9 @@ def file_in_folder(dir_path):
     Returns:
         list[str]: list of files found in the folder
     """
-    # count = 0
-    # for path in os.scandir(dir_path):
-    #     if path.is_file():
-    #         count += 1
-    files_list = [f for f in listdir(dir_path) if isfile(join(dir_path, f))]
-
+    prefix = "data_"
+    ext = ".csv"
+    files_list = [f[len(prefix) : len(f) - len(ext)] for f in listdir(dir_path) if isfile(join(dir_path, f))]
     return files_list
 
 
@@ -31,22 +30,30 @@ def create_data_dir():
     if os.path.exists(DATA_DIR):
         shutil.rmtree(DATA_DIR)
     os.makedirs(DATA_DIR)
+
+
+def get_csv_path(id):
+    """
+    from csv_ID to csv path
+
+    Returns:
+        str: path to the csv
+    """
+    csv_filename = "data_" + id + ".csv"
+    return DATA_DIR + "/" + csv_filename
         
         
-def save_csv(df):
+def save_csv(df, id):
     """
     Save dataframe to .cvs
 
     Args:
         df (DataFrame): data to save to .csv
-
-    Returns:
-        str: csv ID
+        id (str): unique ID
     """
+    df.to_csv(get_csv_path(id), index = False)
+    log.info("Data saved into file named : " + get_csv_path(id))
 
-    csv_id = "data_" + datetime.now().strftime("%d-%m-%Y_%H:%M:%S") + ".csv"
-    df.to_csv(DATA_DIR + "/" + csv_id, index = False)
-    return csv_id
 
 
 def delete_csv(csv_id):
@@ -56,12 +63,12 @@ def delete_csv(csv_id):
     Args:
         csv_id (str): csv file to delete
     """
-    csv_path = DATA_DIR + "/" + csv_id
+    csv_path = get_csv_path(csv_id)
     if(os.path.exists(csv_path) and os.path.isfile(csv_path)):
         os.remove(csv_path)
-        log.info("Deleted data file named : " + csv_id)
+        log.info("Deleted data file named : " + csv_path)
     else:
-        log.error(csv_id + " not found")
+        log.error(csv_path + " not found")
 
 
 def print_node_info():
@@ -81,8 +88,8 @@ def read_vars_name(filename):
         data (ped_motion): PoseArray data
 
     Returns:
-        vars_name (list(str)): list containing variables name
-        vars_name_printable (list(str)): list containing variables name printable
+        (list(str)): list containing variables name
+        (list(str)): list containing variables name printable
     """
     log.info("Reading vars from : " + filename)
 
@@ -113,7 +120,7 @@ def distance(xa, ya, xb, yb):
         yb (float): y-coord B agent
 
     Returns:
-        d (float): Euler distance
+        (float): Euler distance
     """
     d = sqrt((xa - xb) ** 2 + (ya - yb) ** 2)
     return d
@@ -130,7 +137,7 @@ def bearing(xa, ya, xb, yb):
         yb (float): y-coord B agent
 
     Returns:
-        theta (float): angle between agent A and B
+        (float): angle between agent A and B
     """
     theta = atan2(yb - ya, xb - xa)
     return theta
@@ -145,10 +152,33 @@ def velocity(vx, vy):
         vy (float): human velocity along y-axis
 
     Returns:
-        v (float): absolute velocity of human
+        (float): absolute velocity of human
     """
     v = sqrt(vx ** 2 + vy ** 2)
     return v
+
+
+def compute_causal_var(h_state, goal):
+    """
+    Compute new causal variable values from observed features
+
+    Args:
+        h_state (tuple[float]): _description_
+        goal (tuple[float]): _description_
+
+    Returns:
+        list[float]: New causal variable data
+    """
+    # Unzip tuples
+    h_x, h_y, h_vx, h_vy = h_state
+    goal_x, goal_y = goal
+
+    # Compute new causal var values
+    theta_g = bearing(h_x, h_y, goal_x, goal_y)
+    d_g = distance(h_x, h_y, goal_x, goal_y)
+    v = velocity(h_vx, h_vy)
+    
+    return [theta_g, d_g, v]
 
 
 def handle_obj_pose(data, selected_id):
@@ -159,17 +189,15 @@ def handle_obj_pose(data, selected_id):
         data (SceneObjects): custom msg from MapServer
 
     Returns:
-        obj: selected human
-        x: position along x-axis
-        y: position along y-axis
+        (tuple[float]): position along x-axis, position along y-axis
     """
-    obj = next(obj for obj in data.objects if obj.id == selected_id)
+    obj = get_selected_obj(data, selected_id)
 
     x = obj.pose.pose.position.x
     y = obj.pose.pose.position.y
     log.debug("Object pose received : (x " + str(x) + " - y " + str(y) + ")")
 
-    return obj, x, y
+    return (x, y)
 
 
 def handle_human_pose(data, selected_id):
@@ -180,13 +208,9 @@ def handle_human_pose(data, selected_id):
         data (Humans): custom msg from T2.5
 
     Returns:
-        human: selected human
-        x: position along x-axis
-        y: position along y-axis
-        vx: velocity along x-axis
-        vy: velocity along y-axis
+        (tuple[float]): position along x-axis, position along y-axis, velocity along x-axis, velocity along y-axis
     """ 
-    human = next(human for human in data.humans if human.id == selected_id)
+    human = get_selected_human(data, selected_id)
 
     x = human.centroid.pose.position.x
     y = human.centroid.pose.position.y
@@ -194,4 +218,48 @@ def handle_human_pose(data, selected_id):
     vy = human.velocity.twist.linear.y
     log.debug("Human pose received : (x " + str(x) + " - y " + str(y) + " - vx " + str(vx) + " - vy " + str(vy) + ")")
 
-    return human, x, y, vx, vy
+    return (x, y, vx, vy)
+
+
+def get_selected_human(data, selected_id):
+    """
+    return select human msg
+
+    Args:
+        data (Humans): custom msg from T2.5
+
+    Returns:
+        (Human): selected human
+    """ 
+    human = next(human for human in data.humans if human.id == selected_id)
+    return human
+
+
+def get_selected_obj(data, selected_id):
+    """
+    return selected obj msg
+
+    Args:
+        data (Humans): custom msg from T2.5
+
+    Returns:
+        (SceneObject): selected obj
+    """ 
+    obj = next(obj for obj in data.objects if obj.id == selected_id)
+    return obj
+
+
+def print_causal_model_msg(cm: CausalModel):
+    """
+    build a string CausalModel msg
+
+    Args:
+        cm (CausalModel): CausalModel msg
+
+    Returns:
+        str: string to print descibing the CausalModel msg
+    """
+    string = "CausalModel message\n"
+    string += "model : " + cm.model + "\n"
+    string += "human_id : " + str(cm.human_id)
+    return string

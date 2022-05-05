@@ -7,6 +7,7 @@ from constants import *
 from sklearn.utils._testing import ignore_warnings
 from sklearn.exceptions import ConvergenceWarning
 from log import log
+import utils
 
 
 class causal_model:
@@ -20,7 +21,7 @@ class causal_model:
         self.vars_name = vars_name
         self.alpha = alpha
         self.df_traj = pd.DataFrame(columns = ['x', 'y'])
-        self.df = pd.read_csv(DATA_DIR + "/" + filename)
+        self.df = pd.read_csv(utils.get_csv_path(filename))
         self.inference_dict = dict()
     
 
@@ -65,7 +66,7 @@ class causal_model:
             val_matrix (ndarray): value matrix returning from causal discovery algorithm
 
         Returns:
-            dict_cm (dictionary{str : ndarray}): causal model dictionary
+            (dictionary{str : ndarray}): causal model dictionary
         """
 
         # number of lags and vars definition
@@ -111,14 +112,14 @@ class causal_model:
             sig_links = (graph != "")*(graph != "<--")
         else:
             sig_links = (p_matrix <= alpha_level)
-        log.info("\n## Significant links at alpha = %s:" % alpha_level)
+        string = "\n## Significant links at alpha = " + str(alpha_level) + ":"
         for j in range(len(self.vars_name)):
             links = {(p[0], -p[1]): numpy.abs(val_matrix[p[0], j, abs(p[1])])
                      for p in zip(*numpy.where(sig_links[:, j, :]))}
             # Sort by value
             sorted_links = sorted(links, key=links.get, reverse=True)
             n_links = len(links)
-            string = ("\n    Variable %s has %d "
+            string += ("\n    Variable %s has %d "
                       "link(s):" % (self.vars_name[j], n_links))
             for p in sorted_links:
                 string += ("\n        (%s % d): pval = %.5f" %
@@ -135,13 +136,9 @@ class causal_model:
                         string += " | unoriented link"
                     if graph[p[0], j, abs(p[1])] == "x-x":
                         string += " | unclear orientation due to conflict"
-            log.info(string)
-        # link_marker = {True:"o-o", False:"-->"}
         if ambiguous_triples is not None and len(ambiguous_triples) > 0:
-            log.info("\n## Ambiguous triples (not used for orientation):\n")
+            string += "\n## Ambiguous triples (not used for orientation):\n"
             for triple in ambiguous_triples:
                 (i, tau), k, j = triple
-                log.info("    [(%s % d), %s, %s]" % (
-                    self.vars_name[i], tau, 
-                    self.vars_name[k],
-                    self.vars_name[j]))
+                string += ("    [(%s % d), %s, %s]" % (self.vars_name[i], tau, self.vars_name[k], self.vars_name[j]))
+        log.info(string)

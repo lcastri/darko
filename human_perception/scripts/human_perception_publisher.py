@@ -4,7 +4,7 @@ import rospy
 import utils
 from constants import *
 import pandas as pd
-
+import time
 
 def publish_humans(i):
     x = df_data.loc[i].x
@@ -17,7 +17,8 @@ def publish_humans(i):
         vy = df_data.loc[i].y - df_data.loc[i-1].y
     
     h = Human()
-    h.id = 0
+    h.id = 22
+    
     h.centroid.pose.position.x = x
     h.centroid.pose.position.y = y
     h.velocity.twist.linear.x = vx
@@ -25,8 +26,7 @@ def publish_humans(i):
 
     h_list = Humans()
     h_list.humans.append(h)
-    # ped_mot.ped_traj.header.frame_id = 'base_frame'
-    # ped_mot.ped_traj.poses.append(p)
+    h_list.header.stamp = rospy.Time.now()
     pub_mot_pred.publish(h_list)
 
 
@@ -49,6 +49,7 @@ if __name__ == '__main__':
 
     # Init publisher
     pub_mot_pred = rospy.Publisher('/perception/humans', Humans, queue_size=10)
+    time.sleep(5)
 
     while not rospy.is_shutdown():
         publish_humans(df_i)
