@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from object_map.msg import SceneObject, SceneObjects
+from darko_perception_msgs.msg import SceneObject, SceneObjects
 import rospy
 import utils
 from constants import *

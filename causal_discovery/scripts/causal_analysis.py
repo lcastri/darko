@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.8
 import json
-from causal_discovery.msg import CausalModel, Humans, SceneObjects
+from darko_causal_discovery_msgs.msg import CausalModel
+from darko_perception_msgs.msg import Humans, SceneObjects
 from causal_model import causal_model
 import rospy
 import utils

@@ -3,7 +3,7 @@ from math import sqrt, atan2
 from log import log
 from os import listdir
 from os.path import isfile, join
-from causal_discovery.msg import CausalModel
+from darko_causal_discovery_msgs.msg import CausalModel
 import shutil
 
 
