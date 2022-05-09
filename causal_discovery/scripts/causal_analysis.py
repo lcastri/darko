@@ -11,8 +11,6 @@ import time
 import pandas as pd
 import message_filters
 
-# TODO: remove selected human id = 22
-# TODO: remove selected obj id = 0
 
 df_data = pd.DataFrame()
 df_reset = True
