@@ -17,7 +17,7 @@ def publish_humans(i):
         vy = df_data.loc[i].y - df_data.loc[i-1].y
     
     h = Human()
-    h.id = 22
+    h.id = 21
     
     h.centroid.pose.position.x = x
     h.centroid.pose.position.y = y

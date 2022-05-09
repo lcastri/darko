@@ -16,7 +16,6 @@ import message_filters
 
 df_data = pd.DataFrame()
 df_reset = True
-dict_human_csv = dict()
 
 
 def publish_model(model_json, h_id):
@@ -52,10 +51,9 @@ def t_multicausal(csv_id):
     log.info("Causal analysis on file " + utils.get_csv_path(csv_id) + " completed")
 
     # Publish causal model in JSON format
-    publish_model(json.dumps(cm.inference_dict), dict_human_csv[csv_id])
+    publish_model(json.dumps(cm.inference_dict), cm.human_id)
     
     # Delete file .csv just analysed
-    dict_human_csv.pop(csv_id)
     utils.delete_csv(csv_id)
     del cm
     
@@ -82,41 +80,49 @@ def cb_handle_data(humans_pose, objs_pose):
     """
     global df_data
     global df_reset
-    global dict_human_csv
 
     log.debug("New human and object poses")
     
     # If TS_LENGTH reached then reset dataframes else append new data
+    df_reset_diffdown = False
     if df_reset:
         df_data = pd.DataFrame(columns = vars_name)
         log.info("Dataframes initialised")
         df_reset = False
-        selected_h = utils.get_selected_human(humans_pose, selected_id=22)
-        csv_id = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
-        dict_human_csv[csv_id] = selected_h.id
+        df_reset_diffdown = True
+        
+    if utils.selected_human_exist(humans_pose, selected_id=HUM_ID) and utils.selected_obj_exist(objs_pose, selected_id=OBJ_ID):
+        h_state = utils.handle_human_pose(humans_pose, selected_id=HUM_ID)
+        goal = utils.handle_obj_pose(objs_pose, selected_id=OBJ_ID)
 
-    h_state = utils.handle_human_pose(humans_pose, selected_id=22)
-    goal = utils.handle_obj_pose(objs_pose, selected_id=0)
-
-    # Compute and append new data for timeseries
-    df_data.loc[df_data.shape[0]] = utils.compute_causal_var(h_state, goal)
-
+        # Compute and append new data to the timeseries
+        new_data = utils.compute_causal_var(h_state, goal)
+        if df_reset_diffdown:
+            new_data['human_id'] = HUM_ID
+            df_reset_diffdown = False
+        df_data = df_data.append(pd.Series(new_data), ignore_index=True)
+        
+    else:
+        # append None data to the timeseries
+        new_data = {'theta_g' : None, 'd_g' : None, 'v' : None}
+        if df_reset_diffdown:
+            new_data['human_id'] = HUM_ID
+            df_reset_diffdown = False
+        df_data = df_data.append(pd.Series(new_data), ignore_index=True)
+        
     # Starting causal analysis if TS_LENGTH has been reached
     if (len(df_data) * 1/NODE_RATE) >= TS_LENGTH:
         # Saving dataframe into .csv file
-        list_csv_id = list(dict_human_csv.keys())
-        list_csv_id.sort()
-        name_csv = list_csv_id[-1]
-        utils.save_csv(df_data, name_csv)
+        csv_id = utils.save_csv(df_data)
         
         if CAUSAL_STRATEGY == causal_stategy.MULTI:
             # Starting causal analysis on .csv just created
-            t_causality = threading.Thread(target = t_multicausal, args = (dict_human_csv.keys())[0],)
+            t_causality = threading.Thread(target = t_multicausal, args = (csv_id,))
             t_causality.start()
         
         # New dataframe
         df_reset = True
-
+        
 
 if __name__ == '__main__':
 

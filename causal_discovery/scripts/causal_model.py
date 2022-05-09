@@ -1,5 +1,6 @@
 import numpy
 import pandas as pd
+from pyparsing import col
 import tigramite.data_processing as pp
 from tigramite.pcmci import PCMCI
 from tigramite.independence_tests import GPDC, GPDCtorch
@@ -18,11 +19,12 @@ class causal_model:
         Args:
             filename (str): data file .csv to open
         """
-        self.vars_name = vars_name
+        self.vars_name = vars_name[:-1]
         self.alpha = alpha
         self.df_traj = pd.DataFrame(columns = ['x', 'y'])
-        self.df = pd.read_csv(utils.get_csv_path(filename))
+        self.df = pd.read_csv(utils.get_csv_path(filename), usecols=self.vars_name)
         self.inference_dict = dict()
+        self.human_id = pd.read_csv(utils.get_csv_path(filename), usecols=["human_id"], nrows = 1).iloc[0]['human_id']
     
 
     @ignore_warnings(category=ConvergenceWarning)

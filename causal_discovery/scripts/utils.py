@@ -1,9 +1,10 @@
+from logging import exception
 from constants import *
 from math import sqrt, atan2
 from log import log
 from os import listdir
 from os.path import isfile, join
-from darko_causal_discovery_msgs.msg import CausalModel
+from darko_causal_discovery_msgs.msg import CausalModel 
 import shutil
 
 
@@ -43,16 +44,20 @@ def get_csv_path(id):
     return DATA_DIR + "/" + csv_filename
         
         
-def save_csv(df, id):
+def save_csv(df):
     """
     Save dataframe to .cvs
 
     Args:
         df (DataFrame): data to save to .csv
-        id (str): unique ID
+        
+    Returns:
+        (str): unique ID
     """
-    df.to_csv(get_csv_path(id), index = False)
-    log.info("Data saved into file named : " + get_csv_path(id))
+    csv_id = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
+    df.to_csv(get_csv_path(csv_id), index = False)
+    log.info("Data saved into file named : " + get_csv_path(csv_id))
+    return csv_id
 
 
 
@@ -106,6 +111,7 @@ def read_vars_name(filename):
             line = file.readline()
 
     log.info("Causal analysis on variables : " + str(vars_name))
+    vars_name.append('human_id')
     return vars_name, vars_name_printable
     
 
@@ -167,7 +173,7 @@ def compute_causal_var(h_state, goal):
         goal (tuple[float]): _description_
 
     Returns:
-        list[float]: New causal variable data
+        dict[float]: New causal variable data
     """
     # Unzip tuples
     h_x, h_y, h_vx, h_vy = h_state
@@ -178,7 +184,7 @@ def compute_causal_var(h_state, goal):
     d_g = distance(h_x, h_y, goal_x, goal_y)
     v = velocity(h_vx, h_vy)
     
-    return [theta_g, d_g, v]
+    return {'theta_g' : theta_g, 'd_g' : d_g, 'v' : v}
 
 
 def handle_obj_pose(data, selected_id):
@@ -219,6 +225,42 @@ def handle_human_pose(data, selected_id):
     log.debug("Human pose received : (x " + str(x) + " - y " + str(y) + " - vx " + str(vx) + " - vy " + str(vy) + ")")
 
     return (x, y, vx, vy)
+
+
+def selected_human_exist(data, selected_id):
+    """
+    return true if selected human is contained in the msg
+
+    Args:
+        data (Humans): custom msg from T2.5
+
+    Returns:
+        (bool): True if human id is contained in the msg. False otherwise
+    """ 
+    try:
+        human = next(human for human in data.humans if human.id == selected_id)
+    except:
+        log.warn("human with id " + str(selected_id) + " not found")
+        return False
+    return True
+
+
+def selected_obj_exist(data, selected_id):
+    """
+    return true if selected obj is contained in the msg
+
+    Args:
+        data (SceneObjects): custom msg from T2.5
+
+    Returns:
+        (bool): True if obj id is contained in the msg. False otherwise
+    """ 
+    try:
+        obj = next(obj for obj in data.objects if obj.id == selected_id)
+    except:
+        log.warn("scene object with id " + str(selected_id) + " not found")
+        return False
+    return True
 
 
 def get_selected_human(data, selected_id):
